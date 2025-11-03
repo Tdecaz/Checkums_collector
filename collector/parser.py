@@ -279,9 +279,13 @@ class PDFParser:
         ambiguous: List[AmbiguousEntry] = []
         cleaned_tokens = [clean_token(tok) for tok in tokens]
 
-        for idx, token in enumerate(cleaned_tokens):
+        idx = 0
+        while idx < len(cleaned_tokens):
+            token = cleaned_tokens[idx]
             if not token:
+                idx += 1
                 continue
+
             match = FILENAME_PATTERN.search(token)
             if match:
                 value = match.group(0)
@@ -295,40 +299,30 @@ class PDFParser:
                         confidence="direct",
                     )
                 )
+                idx += 1
                 continue
 
-            if token.endswith('.') and idx + 1 < len(cleaned_tokens):
-                next_token = cleaned_tokens[idx + 1]
-                combined = token + next_token
-                if FILENAME_PATTERN.search(combined):
-                    ambiguous.append(
-                        AmbiguousEntry(
-                            entry_id=self._entry_id(pdf_path, page, combined, "filename_split"),
-                            pdf_path=pdf_path,
-                            pdf_name=pdf_name,
-                            page=page,
-                            filename_fragments=[token, next_token],
-                            notes=f"Filename split across tokens. Context: {context_text}",
-                        )
-                    )
-                    continue
-
+            # Handle filenames split at a dot (e.g. "file." + "jar" or "file" + ".jar").
             if idx + 1 < len(cleaned_tokens):
                 next_token = cleaned_tokens[idx + 1]
-                if next_token.startswith('.'):
-                    combined = token + next_token
-                    if FILENAME_PATTERN.search(combined):
-                        ambiguous.append(
-                            AmbiguousEntry(
-                                entry_id=self._entry_id(pdf_path, page, combined, "filename_split"),
-                                pdf_path=pdf_path,
-                                pdf_name=pdf_name,
-                                page=page,
-                                filename_fragments=[token, next_token],
-                                notes=f"Filename split with leading dot. Context: {context_text}",
-                            )
+                combined = token + next_token
+                combined_match = FILENAME_PATTERN.search(combined)
+                if combined_match:
+                    value = combined_match.group(0)
+                    valid_filenames.append(
+                        LineItem(
+                            value=value,
+                            page=page,
+                            pdf_name=pdf_name,
+                            pdf_path=pdf_path,
+                            context=context_text,
+                            confidence="combined",
                         )
-                        continue
+                    )
+                    idx += 2
+                    continue
+
+            idx += 1
 
         line_text = " ".join(cleaned_tokens)
         for rtp_match in RTP_PATTERN.finditer(line_text):
@@ -391,7 +385,7 @@ class PDFParser:
             if len(cleaned) == 40 and HEX_CHARS.search(cleaned):
                 valid_hashes.append(
                     LineItem(
-                        value=cleaned,
+                        value=cleaned.lower(),
                         page=page,
                         pdf_name=pdf_name,
                         pdf_path=pdf_path,
@@ -415,6 +409,19 @@ class PDFParser:
                     fragments.append(next_token)
                     lookahead += 1
                 if len(combined) == 40:
+                    valid_hashes.append(
+                        LineItem(
+                            value=combined.lower(),
+                            page=page,
+                            pdf_name=pdf_name,
+                            pdf_path=pdf_path,
+                            context=context_text,
+                            confidence="combined",
+                        )
+                    )
+                    idx = lookahead
+                    continue
+                if len(fragments) > 1 and HEX_CHARS.search(combined):
                     ambiguous.append(
                         AmbiguousEntry(
                             entry_id=self._entry_id(pdf_path, page, combined, "checksum_split"),
@@ -422,11 +429,9 @@ class PDFParser:
                             pdf_name=pdf_name,
                             page=page,
                             checksum_fragments=fragments,
-                            notes=f"Checksum split across tokens. Context: {context_text}",
+                            notes=f"Possible checksum fragments. Context: {context_text}",
                         )
                     )
-                    idx = lookahead
-                    continue
             idx += 1
 
         # De-duplicate hashes.
