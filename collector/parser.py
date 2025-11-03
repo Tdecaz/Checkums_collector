@@ -381,7 +381,18 @@ class PDFParser:
             if not token:
                 idx += 1
                 continue
-            cleaned = re.sub(r"[^0-9a-fA-F]", "", token)
+            # Reject tokens that contain characters outside the hexadecimal alphabet.
+            # This prevents ordinary words such as "DATA" or "APPENDIX" from being
+            # interpreted as checksum fragments simply because they share the letters
+            # A-F with hexadecimal digits.
+            sanitized = token.strip()
+            if not sanitized or any(
+                ch not in "0123456789abcdefABCDEF-" for ch in sanitized
+            ):
+                idx += 1
+                continue
+
+            cleaned = re.sub(r"[^0-9a-fA-F]", "", sanitized)
             if len(cleaned) == 40 and HEX_CHARS.search(cleaned):
                 valid_hashes.append(
                     LineItem(
@@ -402,7 +413,12 @@ class PDFParser:
                 lookahead = idx + 1
                 while lookahead < len(cleaned_tokens) and len(combined) < 40:
                     next_token = cleaned_tokens[lookahead]
-                    next_clean = re.sub(r"[^0-9a-fA-F]", "", next_token)
+                    next_sanitized = next_token.strip()
+                    if not next_sanitized or any(
+                        ch not in "0123456789abcdefABCDEF-" for ch in next_sanitized
+                    ):
+                        break
+                    next_clean = re.sub(r"[^0-9a-fA-F]", "", next_sanitized)
                     if not next_clean:
                         break
                     combined += next_clean
@@ -421,7 +437,7 @@ class PDFParser:
                     )
                     idx = lookahead
                     continue
-                if len(fragments) > 1 and HEX_CHARS.search(combined):
+                if len(fragments) > 1 and len(combined) >= 32 and HEX_CHARS.search(combined):
                     ambiguous.append(
                         AmbiguousEntry(
                             entry_id=self._entry_id(pdf_path, page, combined, "checksum_split"),
