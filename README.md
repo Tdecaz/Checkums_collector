@@ -86,7 +86,7 @@ When the window opens you will see:
 
 - **Input Folder** field and **Browse…** button for picking the directory that contains the PDF files to scan.
 - **Output Folder** field and **Browse…** button where the exported Excel workbook will be saved.
-- **Start Scan** button, a progress bar, and textual status that shows which PDF is currently being analysed.
+- **Start Scan** button, a **Cancel** button, a progress bar, and textual status that shows which PDF is currently being analysed.
 - A table that will eventually list the confirmed filename / checksum matches, and counters for how many ambiguous entries still need review.
 
 Both the input and output folders must be selected before you can start a scan.
@@ -100,7 +100,7 @@ Both the input and output folders must be selected before you can start a scan.
    - The results table filling with confident filename/SHA-1 pairs as they are detected.
    - A counter of ambiguous items that require manual attention.
 
-You can cancel the scan at any time with **Stop Scan**; the data collected so far remains available for review.
+You can cancel the scan at any time with **Cancel**; the data collected so far remains available for review. When cancellation completes the status text updates so you know the parser stopped.
 
 ### 3. Review ambiguous items
 
@@ -111,14 +111,14 @@ Once the scan finishes (or whenever there are ambiguous entries), click **Review
 - **Discard** – drop entries that are not valid matches.
 - **Mark reviewed** – accept an entry as-is without further modification.
 
-Use Shift/Ctrl-click to select multiple rows and apply the same action in bulk. Confirmed items move into the main results table; discarded ones are tracked separately so they do not appear in the export.
+Use Shift/Ctrl-click to select multiple rows and apply the same action in bulk. Confirmed items move into the main results table, discarded ones are tracked separately so they do not appear in the export, and the **Show Errors** button lists any PDFs that could not be processed.
 
 ### 4. Export the results
 
 After clearing all ambiguous items, click **Export to Excel**. The application creates an `.xlsx` workbook in the output folder with two sheets:
 
-1. **Results** – columns for PDF name, page number, filename, SHA-1 checksum, and review status/notes.
-2. **Ambiguous Items** – optional log of anything you chose to discard or leave unresolved.
+1. **Matches** – columns for PDF name, page number, filename, SHA-1 checksum, notes, and confidence (automatic vs. manual).
+2. **Ambiguous** – optional log of anything you chose to discard, leave unresolved, or mark as reviewed.
 
 If a file with the same name already exists in the output folder you will be prompted before overwriting.
 
