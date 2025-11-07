@@ -1,0 +1,1 @@
+"""Checksum collector application package."""
